@@ -1,0 +1,21 @@
+version: "3.8"
+services:
+  backend:
+    build:
+      context: ./nestjs
+      dockerfile: Dockerfile
+    ports:
+      - "3000:3000"
+    depends_on:
+      - db
+    restart: always
+  db:
+    image: postgres
+    container_name: postgres_db
+    restart: always
+    environment:
+      - POSTGRES_DB=events
+      - POSTGRES_USER=vitalii
+      - POSTGRES_PASSWORD=vitalii
+    ports:
+      - "5432:5432"
