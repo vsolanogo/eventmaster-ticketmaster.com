@@ -1,11 +1,11 @@
 import { Injectable, NestMiddleware } from '@nestjs/common';
 import { Request, Response, NextFunction } from 'express';
-import { UserService } from '../user.service';
 import { User } from '../user.entity';
 import { SESSION_ID } from '../../constants';
 import { SessionService } from '../../session/session.service';
 
 declare global {
+  // eslint-disable-next-line @typescript-eslint/no-namespace
   namespace Express {
     interface Request {
       currentUser?: User;

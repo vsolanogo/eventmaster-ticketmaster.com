@@ -9,7 +9,10 @@ import { RoleModule } from '../role/role.module';
 import { Session } from '../session/session.entity';
 
 @Module({
-  imports: [TypeOrmModule.forFeature([Event, Session, Role, Image]), RoleModule],
+  imports: [
+    TypeOrmModule.forFeature([Event, Session, Role, Image]),
+    RoleModule,
+  ],
   controllers: [ImageController],
   providers: [ImageService],
 })

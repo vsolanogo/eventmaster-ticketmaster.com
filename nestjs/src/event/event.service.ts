@@ -8,7 +8,7 @@ import { v4 as uuidv4 } from 'uuid';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Event } from './event.entity';
 import { Image } from '../image/image.entity';
-import { Repository } from 'typeorm';
+import { Repository, In } from 'typeorm';
 import { CreateEventDto } from './dto/create-event.dto';
 import { User } from '../user/user.entity';
 import { validate } from 'class-validator';
@@ -53,7 +53,9 @@ export class EventService {
 
     const newEvent = new Event();
 
-    const images = await this.imageRepository.findByIds(createEventDto.images);
+    const images = await this.imageRepository.findBy({
+      id: In(createEventDto.images),
+    });
     if (createEventDto.images.length !== images.length) {
       throw new NotFoundException('Not all requested images were found');
     }
@@ -82,7 +84,7 @@ export class EventService {
       if ('id' in createEventDto) {
         await this.participantService.generateFakeParticipants(
           savedEvent,
-          getRandomNumber(50, 1000),
+          getRandomNumber(20, 100),
         ); // Add fake participants
       }
 

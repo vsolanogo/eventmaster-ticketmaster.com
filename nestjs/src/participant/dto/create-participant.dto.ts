@@ -20,7 +20,7 @@ export class CreateParticipantDto {
   @IsEmail()
   email: string;
 
-  @IsDateString() 
+  @IsDateString()
   dateOfBirth: Date;
 
   @IsString()

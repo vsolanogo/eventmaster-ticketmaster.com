@@ -13,8 +13,20 @@ export class ImageService {
   async createImagesWithLinks(links: string[]): Promise<Image[]> {
     const createdImages: Image[] = [];
     for (const link of links) {
-      const image = await this.createWithLink(link);
-      createdImages.push(image);
+      // Skip invalid or empty links
+      if (!link || typeof link !== 'string' || link.trim() === '') {
+        continue;
+      }
+      try {
+        const image = await this.createWithLink(link);
+        createdImages.push(image);
+      } catch (error) {
+        console.error(
+          `Failed to create image with link: ${link}`,
+          error.message,
+        );
+        // Continue with other images instead of failing completely
+      }
     }
     return createdImages;
   }

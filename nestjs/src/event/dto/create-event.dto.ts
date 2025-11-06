@@ -25,7 +25,7 @@ export class CreateEventDto {
   @MaxLength(5000, { message: 'Description is too long' })
   description: string;
 
-  @IsDateString() 
+  @IsDateString()
   eventDate: Date;
 
   @IsOptional()
