@@ -1,0 +1,87 @@
+{
+  "total": 20,
+  "passed": 20,
+  "failed": 0,
+  "subtests": [
+    {
+      "name": "TestAuthFlow/register success",
+      "passed": true
+    },
+    {
+      "name": "TestAuthFlow/register duplicate",
+      "passed": true
+    },
+    {
+      "name": "TestAuthFlow/login success",
+      "passed": true
+    },
+    {
+      "name": "TestAuthFlow/login invalid credentials",
+      "passed": true
+    },
+    {
+      "name": "TestAuthFlow/current user requires auth",
+      "passed": true
+    },
+    {
+      "name": "TestAuthFlow/current user unauthorized",
+      "passed": true
+    },
+    {
+      "name": "TestAuthFlow/current user invalid token",
+      "passed": true
+    },
+    {
+      "name": "TestAuthValidations/register invalid email",
+      "passed": true
+    },
+    {
+      "name": "TestAuthValidations/register missing password",
+      "passed": true
+    },
+    {
+      "name": "TestAuthValidations/register empty email",
+      "passed": true
+    },
+    {
+      "name": "TestLoginEdgeCases/login wrong password",
+      "passed": true
+    },
+    {
+      "name": "TestLoginEdgeCases/login missing credentials",
+      "passed": true
+    },
+    {
+      "name": "TestLogout/logout clears session cookie",
+      "passed": true
+    },
+    {
+      "name": "TestEventEndpoints/list events",
+      "passed": true
+    },
+    {
+      "name": "TestEventEndpoints/pagination",
+      "passed": true
+    },
+    {
+      "name": "TestEventEndpoints/sort asc",
+      "passed": true
+    },
+    {
+      "name": "TestEventEndpoints/sort desc",
+      "passed": true
+    },
+    {
+      "name": "TestEventEndpoints/get by id",
+      "passed": true
+    },
+    {
+      "name": "TestEventEndpoints/missing event returns 404",
+      "passed": true
+    },
+    {
+      "name": "TestEventEndpoints/create event requires auth",
+      "passed": true
+    }
+  ]
+}
