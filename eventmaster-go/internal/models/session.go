@@ -11,6 +11,7 @@ type Session struct {
 	UserID    string    `gorm:"not null"`
 	Token     string    `gorm:"type:text;not null;unique"`
 	ExpiresAt time.Time `gorm:"not null"`
+	IP        string    `gorm:"size:45;not null"`
 	User      User      `gorm:"foreignKey:UserID;constraint:OnDelete:CASCADE"`
 }
 
@@ -32,17 +33,18 @@ type LoginRequest struct {
 	Password string `json:"password" validate:"required"`
 }
 
-type LoginResponse struct {
-	Token     string    `json:"token"`
-	ExpiresAt time.Time `json:"expires_at"`
-	User      *UserResponse `json:"user"`
+type SessionResponse struct {
+	ID        string    `json:"id"`
+	IP        string    `json:"ip"`
+	CreatedAt time.Time `json:"createdAt"`
+	ExpiresAt time.Time `json:"expires"`
 }
 
-// ToResponse converts a Session to a LoginResponse
-func (s *Session) ToResponse(user *User) *LoginResponse {
-	return &LoginResponse{
-		Token:     s.Token,
+func (s *Session) ToResponse() SessionResponse {
+	return SessionResponse{
+		ID:        s.ID,
+		IP:        s.IP,
+		CreatedAt: s.CreatedAt,
 		ExpiresAt: s.ExpiresAt,
-		User:      user.ToResponse(),
 	}
 }

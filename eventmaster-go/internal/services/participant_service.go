@@ -18,6 +18,7 @@ type ParticipantService interface {
 	GetEventParticipantCount(eventID string) (int64, error)
 	DeleteParticipant(id string) error
 	GenerateFakeParticipants(event *models.Event, count int) error
+	RegistrationsPerDay(eventID string) ([]*repositories.RegistrationsPerDayResult, error)
 }
 
 func (s *participantService) GenerateFakeParticipants(event *models.Event, count int) error {
@@ -133,4 +134,8 @@ func (s *participantService) GetEventParticipantCount(eventID string) (int64, er
 
 func (s *participantService) DeleteParticipant(id string) error {
 	return s.participantRepo.Delete(id)
+}
+
+func (s *participantService) RegistrationsPerDay(eventID string) ([]*repositories.RegistrationsPerDayResult, error) {
+	return s.participantRepo.RegistrationsPerDay(eventID)
 }

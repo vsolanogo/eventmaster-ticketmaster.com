@@ -29,14 +29,18 @@ func NewServer(authService services.AuthService, config Config) *Server {
 	e.Use(middleware.Logger())
 	e.Use(middleware.Recover())
 	e.Use(middleware.CORSWithConfig(middleware.CORSConfig{
-		AllowOrigins: []string{"*"},
-		AllowMethods: []string{http.MethodGet, http.MethodPost, http.MethodPut, http.MethodDelete},
-		AllowHeaders: []string{echo.HeaderContentType, echo.HeaderAuthorization},
+		AllowOrigins: []string{"http://localhost:3001"},
+		AllowMethods: []string{http.MethodGet, http.MethodPost, http.MethodPut, http.MethodDelete, http.MethodOptions},
+		AllowHeaders: []string{echo.HeaderContentType, echo.HeaderAuthorization, echo.HeaderAccept, "X-Requested-With"},
+		AllowCredentials: true,
 	}))
 
 	e.Validator = &CustomValidator{Validator: NewValidator()}
 
 	apiGroup := e.Group("/api")
+
+	// Expose uploads directory
+	e.Static("/uploads", "uploads")
 
 	server := &Server{
 		echo:        e,
@@ -68,6 +72,10 @@ func (s *Server) setupRoutes(authService services.AuthService) {
 
 func (s *Server) requireAuth(next echo.HandlerFunc) echo.HandlerFunc {
 	return func(c echo.Context) error {
+		if c.Request().Method == http.MethodOptions {
+			return c.NoContent(http.StatusNoContent)
+		}
+
 		cookie, err := c.Cookie(s.config.SessionCookieName)
 		if err != nil || cookie.Value == "" {
 			return echo.NewHTTPError(http.StatusUnauthorized, "unauthorized")

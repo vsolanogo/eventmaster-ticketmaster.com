@@ -14,15 +14,13 @@ import (
 // with routes like POST /images/upload and POST /images/upload/url
 // This is a placeholder for future implementation
 func (s *Server) RegisterFileHandlers(fileService services.FileService) {
-	// TODO: Implement file upload handlers to match NestJS routes
-	// imageGroup := s.echo.Group("/images")
-	// protected := imageGroup.Group("")
-	// protected.Use(s.requireAuth)
-	// {
-	// 	protected.POST("/upload", s.handleFileUpload(fileService))
-	// 	protected.POST("/upload/url", s.handleFileUploadFromURL(fileService))
-	// 	protected.DELETE("/:id", s.handleDeleteFile(fileService))
-	// }
+	imageGroup := s.apiGroup.Group("/image")
+	imageGroup.Use(s.requireAuth)
+
+	imageGroup.POST("", s.handleFileUpload(fileService))
+	imageGroup.POST("/url", s.handleFileUploadFromURL(fileService))
+	imageGroup.DELETE("/:id", s.handleDeleteFile(fileService))
+	imageGroup.GET("/:id", s.handleGetFile(fileService))
 }
 
 func (s *Server) handleFileUpload(svc services.FileService) echo.HandlerFunc {
@@ -32,13 +30,6 @@ func (s *Server) handleFileUpload(svc services.FileService) echo.HandlerFunc {
 		if err != nil {
 			return echo.NewHTTPError(http.StatusBadRequest, "file is required")
 		}
-
-		// Open the uploaded file
-		src, err := file.Open()
-		if err != nil {
-			return echo.NewHTTPError(http.StatusInternalServerError, "failed to open uploaded file")
-		}
-		defer src.Close()
 
 		// Save the file
 		image, err := svc.SaveUploadedFile(file)

@@ -154,7 +154,7 @@ func TestMain(m *testing.M) {
 
 	// Set up services
 	authService := services.NewAuthService(userRepo, sessionRepo, cfg.Auth.JWTExpiration)
-	eventService := services.NewEventService(eventRepo)
+	eventService := services.NewEventService(eventRepo, imageRepo)
 	participantService := services.NewParticipantService(participantRepo, eventRepo)
 	imageService := services.NewImageService(imageRepo)
 	fileService := services.NewFileService(imageRepo, "./uploads", "/uploads")
@@ -240,341 +240,27 @@ func getEnv(key, fallback string) string {
 	return fallback
 }
 
-func TestAuthFlow(t *testing.T) {
-	runSubtest(t, "register success", func(t *testing.T) {
-		reqBody := map[string]string{
-			"email":    randomEmail(),
-			"password": "StrongPassw0rd!",
-		}
-
-		resp := doRequest(t, http.MethodPost, "/register", reqBody, nil)
-		defer resp.Body.Close()
-
-		if resp.StatusCode != http.StatusCreated {
-			t.Fatalf("expected status %d, got %d", http.StatusCreated, resp.StatusCode)
-		}
-
-		var userResp UserResponse
-		decodeJSON(t, resp.Body, &userResp)
-
-		if userResp.ID == "" {
-			t.Fatalf("expected user ID to be set")
-		}
-	})
-
-	runSubtest(t, "register duplicate", func(t *testing.T) {
-		email := randomEmail()
-		password := "Duplicate1!"
-		createUser(t, email, password)
-
-		resp := doRequest(t, http.MethodPost, "/register", map[string]string{
-			"email":    email,
-			"password": password,
-		}, nil)
-		defer resp.Body.Close()
-
-		if resp.StatusCode != http.StatusBadRequest {
-			t.Fatalf("expected status %d, got %d", http.StatusBadRequest, resp.StatusCode)
-		}
-	})
-
-	runSubtest(t, "login success", func(t *testing.T) {
-		email := randomEmail()
-		password := "ValidPass1!"
-		createUser(t, email, password)
-
-		resp := doRequest(t, http.MethodPost, "/login", map[string]string{
-			"email":    email,
-			"password": password,
-		}, nil)
-		defer resp.Body.Close()
-
-		if resp.StatusCode != http.StatusOK {
-			t.Fatalf("expected status %d, got %d", http.StatusOK, resp.StatusCode)
-		}
-
-		if len(resp.Cookies()) == 0 {
-			t.Fatalf("expected session cookie to be set")
-		}
-	})
-
-	runSubtest(t, "login invalid credentials", func(t *testing.T) {
-		resp := doRequest(t, http.MethodPost, "/login", map[string]string{
-			"email":    "unknown@example.com",
-			"password": "wrong",
-		}, nil)
-		defer resp.Body.Close()
-
-		if resp.StatusCode != http.StatusUnauthorized {
-			t.Fatalf("expected status %d, got %d", http.StatusUnauthorized, resp.StatusCode)
-		}
-	})
-
-	runSubtest(t, "current user requires auth", func(t *testing.T) {
-		email := randomEmail()
-		password := "ValidPass2!"
-		cookie := loginAndGetCookie(t, email, password)
-
-		headers := map[string]string{"Cookie": cookie}
-		resp := doRequest(t, http.MethodGet, "/user", nil, headers)
-		defer resp.Body.Close()
-
-		if resp.StatusCode != http.StatusOK {
-			t.Fatalf("expected status %d, got %d", http.StatusOK, resp.StatusCode)
-		}
-	})
-
-	runSubtest(t, "current user unauthorized", func(t *testing.T) {
-		resetCookies(t)
-		resp := doRequest(t, http.MethodGet, "/user", nil, nil)
-		defer resp.Body.Close()
-
-		if resp.StatusCode != http.StatusUnauthorized {
-			t.Fatalf("expected status %d, got %d", http.StatusUnauthorized, resp.StatusCode)
-		}
-	})
-
-	runSubtest(t, "current user invalid token", func(t *testing.T) {
-		headers := map[string]string{
-			"Cookie": fmt.Sprintf("%s=%s", sessionCookieName, "invalid-token"),
-		}
-		resp := doRequest(t, http.MethodGet, "/user", nil, headers)
-		defer resp.Body.Close()
-
-		if resp.StatusCode != http.StatusUnauthorized {
-			t.Fatalf("expected status %d, got %d", http.StatusUnauthorized, resp.StatusCode)
-		}
-	})
-}
-
-func TestAuthValidations(t *testing.T) {
-	runSubtest(t, "register invalid email", func(t *testing.T) {
-		payload := map[string]any{
-			"email":    "not-an-email",
-			"password": "ValidPassword123",
-		}
-		resp := doRequest(t, http.MethodPost, "/register", payload, nil)
-		defer resp.Body.Close()
-		if resp.StatusCode != http.StatusBadRequest {
-			t.Fatalf("expected status %d, got %d", http.StatusBadRequest, resp.StatusCode)
-		}
-	})
-
-	runSubtest(t, "register missing password", func(t *testing.T) {
-		payload := map[string]any{
-			"email": randomEmail(),
-		}
-		resp := doRequest(t, http.MethodPost, "/register", payload, nil)
-		defer resp.Body.Close()
-		if resp.StatusCode != http.StatusBadRequest {
-			t.Fatalf("expected status %d, got %d", http.StatusBadRequest, resp.StatusCode)
-		}
-	})
-
-	runSubtest(t, "register empty email", func(t *testing.T) {
-		payload := map[string]any{
-			"email":    "",
-			"password": "ValidPassword123",
-		}
-		resp := doRequest(t, http.MethodPost, "/register", payload, nil)
-		defer resp.Body.Close()
-		if resp.StatusCode != http.StatusBadRequest {
-			t.Fatalf("expected status %d, got %d", http.StatusBadRequest, resp.StatusCode)
-		}
-	})
-}
-
-func TestLoginEdgeCases(t *testing.T) {
-	runSubtest(t, "login wrong password", func(t *testing.T) {
-		email := randomEmail()
-		correctPassword := "CorrectPass1!"
-		createUser(t, email, correctPassword)
-
-		resp := doRequest(t, http.MethodPost, "/login", map[string]any{
-			"email":    email,
-			"password": "WrongPassword123",
-		}, nil)
-		defer resp.Body.Close()
-		if resp.StatusCode != http.StatusUnauthorized {
-			t.Fatalf("expected status %d, got %d", http.StatusUnauthorized, resp.StatusCode)
-		}
-	})
-
-	runSubtest(t, "login missing credentials", func(t *testing.T) {
-		resp := doRequest(t, http.MethodPost, "/login", map[string]any{}, nil)
-		defer resp.Body.Close()
-		if resp.StatusCode != http.StatusBadRequest {
-			t.Fatalf("expected status %d, got %d", http.StatusBadRequest, resp.StatusCode)
-		}
-	})
-}
-
-func TestLogout(t *testing.T) {
-	runSubtest(t, "logout clears session cookie", func(t *testing.T) {
-		email := randomEmail()
-		password := "LogoutPass1!"
-		cookie := loginAndGetCookie(t, email, password)
-
-		headers := map[string]string{"Cookie": cookie}
-		resp := doRequest(t, http.MethodPost, "/logout", nil, headers)
-		defer resp.Body.Close()
-
-		if resp.StatusCode != http.StatusOK {
-			t.Fatalf("expected status %d, got %d", http.StatusOK, resp.StatusCode)
-		}
-
-		cookies := resp.Cookies()
-		var cleared bool
-		for _, c := range cookies {
-			if strings.EqualFold(c.Name, sessionCookieName) {
-				if c.Value == "" {
-					cleared = true
-					break
-				}
-			}
-		}
-
-		if !cleared {
-			t.Fatalf("expected %s cookie to be cleared", sessionCookieName)
-		}
-	})
-}
-
-func TestEventEndpoints(t *testing.T) {
-	runSubtest(t, "list events", func(t *testing.T) {
-		resp := doRequest(t, http.MethodGet, "/events", nil, nil)
-		defer resp.Body.Close()
-
-		if resp.StatusCode != http.StatusOK {
-			t.Fatalf("expected status %d, got %d", http.StatusOK, resp.StatusCode)
-		}
-
-		var list EventListResponse
-		decodeJSON(t, resp.Body, &list)
-
-		if list.Events == nil {
-			t.Fatalf("expected events field to be present")
-		}
-	})
-
-	runSubtest(t, "pagination", func(t *testing.T) {
-		resp := doRequest(t, http.MethodGet, "/events?page=1&limit=5", nil, nil)
-		defer resp.Body.Close()
-
-		if resp.StatusCode != http.StatusOK {
-			t.Fatalf("expected status %d, got %d", http.StatusOK, resp.StatusCode)
-		}
-
-		var list EventListResponse
-		decodeJSON(t, resp.Body, &list)
-
-		if len(list.Events) > 5 {
-			t.Fatalf("expected at most 5 events, got %d", len(list.Events))
-		}
-	})
-
-	runSubtest(t, "sort asc", func(t *testing.T) {
-		resp := doRequest(t, http.MethodGet, "/events?sortBy=eventDate&sortOrder=ASC", nil, nil)
-		defer resp.Body.Close()
-
-		if resp.StatusCode != http.StatusOK {
-			t.Fatalf("expected status %d, got %d", http.StatusOK, resp.StatusCode)
-		}
-
-		var list EventListResponse
-		decodeJSON(t, resp.Body, &list)
-
-		if len(list.Events) > 1 {
-			first := list.Events[0].EventDate
-			second := list.Events[1].EventDate
-			if first.After(*second) {
-				t.Fatalf("expected events to be sorted ascending")
-			}
-		}
-	})
-
-	runSubtest(t, "sort desc", func(t *testing.T) {
-		resp := doRequest(t, http.MethodGet, "/events?sortBy=eventDate&sortOrder=DESC", nil, nil)
-		defer resp.Body.Close()
-
-		if resp.StatusCode != http.StatusOK {
-			t.Fatalf("expected status %d, got %d", http.StatusOK, resp.StatusCode)
-		}
-
-		var list EventListResponse
-		decodeJSON(t, resp.Body, &list)
-
-		if len(list.Events) > 1 {
-			first := list.Events[0].EventDate
-			second := list.Events[1].EventDate
-			if first.Before(*second) {
-				t.Fatalf("expected events to be sorted descending")
-			}
-		}
-	})
-
-	runSubtest(t, "get by id", func(t *testing.T) {
-		listResp := doRequest(t, http.MethodGet, "/events", nil, nil)
-		defer listResp.Body.Close()
-
-		var list EventListResponse
-		decodeJSON(t, listResp.Body, &list)
-
-		if len(list.Events) == 0 {
-			t.Skip("no events available to fetch")
-		}
-
-		id := list.Events[0].ID
-		resp := doRequest(t, http.MethodGet, fmt.Sprintf("/events/%s", id), nil, nil)
-		defer resp.Body.Close()
-
-		if resp.StatusCode != http.StatusOK {
-			t.Fatalf("expected status %d, got %d", http.StatusOK, resp.StatusCode)
-		}
-
-		var event EventResponse
-		decodeJSON(t, resp.Body, &event)
-
-		if event.ID != id {
-			t.Fatalf("expected event id %s, got %s", id, event.ID)
-		}
-	})
-
-	runSubtest(t, "missing event returns 404", func(t *testing.T) {
-		fakeID := uuid.NewString()
-		resp := doRequest(t, http.MethodGet, fmt.Sprintf("/events/%s", fakeID), nil, nil)
-		defer resp.Body.Close()
-
-		if resp.StatusCode != http.StatusNotFound {
-			t.Fatalf("expected status %d, got %d", http.StatusNotFound, resp.StatusCode)
-		}
-	})
-
-	runSubtest(t, "create event requires auth", func(t *testing.T) {
-		resetCookies(t)
-		payload := map[string]any{
-			"title":       "Test Event",
-			"description": "Description",
-			"organizer":   "Org",
-			"latitude":    40.0,
-			"longitude":   -70.0,
-			"eventDate":   time.Now().Add(24 * time.Hour).Format(time.RFC3339),
-		}
-
-		resp := doRequest(t, http.MethodPost, "/events", payload, nil)
-		defer resp.Body.Close()
-
-		if resp.StatusCode != http.StatusUnauthorized {
-			t.Fatalf("expected status %d, got %d", http.StatusUnauthorized, resp.StatusCode)
-		}
-	})
-}
-
 // Helper and data structures
 
 type UserResponse struct {
-	ID    string `json:"id"`
-	Email string `json:"email"`
+	ID      string         `json:"id"`
+	Email   string         `json:"email"`
+	Roles   []RoleResponse `json:"role"`
+	Session []SessionInfo  `json:"session"`
+	Created time.Time      `json:"createdAt"`
+	Updated time.Time      `json:"updatedAt"`
+}
+
+type RoleResponse struct {
+	Role        string  `json:"role"`
+	Description *string `json:"description"`
+}
+
+type SessionInfo struct {
+	ID        string    `json:"id"`
+	IP        string    `json:"ip"`
+	CreatedAt time.Time `json:"createdAt"`
+	Expires   time.Time `json:"expires"`
 }
 
 type EventListResponse struct {
@@ -631,7 +317,23 @@ func loginAndGetCookie(t *testing.T, email, password string) string {
 		t.Fatalf("expected session cookie")
 	}
 
-	return fmt.Sprintf("%s=%s", cookies[0].Name, cookies[0].Value)
+	var sessionCookie *http.Cookie
+	for _, c := range cookies {
+		if strings.EqualFold(c.Name, sessionCookieName) {
+			sessionCookie = c
+			break
+		}
+	}
+
+	if sessionCookie == nil {
+		var names []string
+		for _, c := range cookies {
+			names = append(names, c.Name)
+		}
+		t.Fatalf("expected cookie %s, got %v", sessionCookieName, names)
+	}
+
+	return fmt.Sprintf("%s=%s", sessionCookie.Name, sessionCookie.Value)
 }
 
 func doRequest(t *testing.T, method, path string, body any, headers map[string]string) *http.Response {

@@ -52,7 +52,8 @@ func (s *Server) handleLogin(authService services.AuthService) echo.HandlerFunc 
 			return echo.NewHTTPError(http.StatusBadRequest, err.Error())
 		}
 
-		session, err := authService.Login(req.Email, req.Password)
+		ip := c.RealIP()
+		session, err := authService.Login(req.Email, req.Password, ip)
 		if err != nil {
 			return echo.NewHTTPError(http.StatusUnauthorized, "invalid credentials")
 		}
@@ -67,7 +68,7 @@ func (s *Server) handleLogin(authService services.AuthService) echo.HandlerFunc 
 		}
 		c.SetCookie(cookie)
 
-		return c.JSON(http.StatusOK, session.ToResponse(&session.User))
+		return c.NoContent(http.StatusOK)
 	}
 }
 

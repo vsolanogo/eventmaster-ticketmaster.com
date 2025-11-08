@@ -19,7 +19,7 @@ type CreateEventRequest struct {
 	EventDate   *time.Time `json:"eventDate" validate:"required"`
 	Latitude    float64    `json:"latitude" validate:"required,gte=-90,lte=90"`
 	Longitude   float64    `json:"longitude" validate:"required,gte=-180,lte=180"`
-	ImageIDs    []string   `json:"imageIds" validate:"omitempty,dive,uuid4"`
+	ImageIDs    []string   `json:"images" validate:"omitempty,dive,uuid4"`
 }
 
 // UpdateEventRequest represents the request body for updating an event
@@ -90,7 +90,7 @@ func (s *Server) handleCreateEvent(svc services.EventService) echo.HandlerFunc {
 			Longitude:   req.Longitude,
 		}
 
-		createdEvent, err := svc.CreateEvent(event, userID)
+		createdEvent, err := svc.CreateEvent(event, userID, req.ImageIDs)
 		if err != nil {
 			return echo.NewHTTPError(http.StatusInternalServerError, "failed to create event: "+err.Error())
 		}

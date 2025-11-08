@@ -12,6 +12,7 @@ type User struct {
 	Email    string  `gorm:"size:100;not null;unique" validate:"required,email"`
 	Password string  `gorm:"size:255;not null" validate:"required,min=8"`
 	Roles    []*Role `gorm:"many2many:user_roles;"`
+	Sessions []*Session
 }
 
 // TableName specifies the table name for the User model
@@ -42,17 +43,37 @@ type CreateUserRequest struct {
 }
 
 type UserResponse struct {
-	ID        string    `json:"id"`
-	Email     string    `json:"email"`
-	CreatedAt time.Time `json:"created_at"`
-	UpdatedAt time.Time `json:"updated_at"`
+	ID        string            `json:"id"`
+	Email     string            `json:"email"`
+	Roles     []RoleResponse    `json:"role"`
+	Sessions  []SessionResponse `json:"session"`
+	CreatedAt time.Time         `json:"createdAt"`
+	UpdatedAt time.Time         `json:"updatedAt"`
 }
 
 // ToResponse converts a User to a UserResponse
 func (u *User) ToResponse() *UserResponse {
+	roles := make([]RoleResponse, 0, len(u.Roles))
+	for _, role := range u.Roles {
+		if role == nil {
+			continue
+		}
+		roles = append(roles, role.ToResponse())
+	}
+
+	sessions := make([]SessionResponse, 0, len(u.Sessions))
+	for _, session := range u.Sessions {
+		if session == nil {
+			continue
+		}
+		sessions = append(sessions, session.ToResponse())
+	}
+
 	return &UserResponse{
 		ID:        u.ID,
 		Email:     u.Email,
+		Roles:     roles,
+		Sessions:  sessions,
 		CreatedAt: u.CreatedAt,
 		UpdatedAt: u.UpdatedAt,
 	}

@@ -177,6 +177,7 @@ export const CreateEvent = () => {
               listType="picture"
               onChange={handleImgChange}
               accept=".png,.jpg,.jpeg"
+              withCredentials
             >
               <Button icon={<UploadOutlined />}>Upload</Button>
             </Upload>

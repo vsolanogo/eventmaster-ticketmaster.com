@@ -11,19 +11,21 @@ import (
 	"golang.org/x/crypto/bcrypt"
 )
 
+const defaultUserRole = "user"
+
 // AuthService handles authentication-related business logic
 type AuthService interface {
 	Register(email, password string) (*models.User, error)
-	Login(email, password string) (*models.Session, error)
+	Login(email, password, ip string) (*models.Session, error)
 	GetUserByID(id string) (*models.User, error)
 	ValidateSession(token string) (*models.User, error)
 	Logout(token string) error
 }
 
 type authService struct {
-	userRepo     repositories.UserRepository
-	sessionRepo  repositories.SessionRepository
-	tokenExpiry  time.Duration
+	userRepo    repositories.UserRepository
+	sessionRepo repositories.SessionRepository
+	tokenExpiry time.Duration
 }
 
 // NewAuthService creates a new auth service
@@ -52,10 +54,14 @@ func (s *authService) Register(email, password string) (*models.User, error) {
 		return nil, err
 	}
 
-	return user, nil
+	if err := s.userRepo.AttachRoleByName(user, defaultUserRole); err != nil {
+		return nil, err
+	}
+
+	return s.userRepo.FindWithAssociations(user.ID)
 }
 
-func (s *authService) Login(email, password string) (*models.Session, error) {
+func (s *authService) Login(email, password, ip string) (*models.Session, error) {
 	user, err := s.userRepo.FindByEmail(email)
 	if err != nil {
 		return nil, errors.New("invalid credentials")
@@ -77,6 +83,7 @@ func (s *authService) Login(email, password string) (*models.Session, error) {
 		UserID:    user.ID,
 		Token:     token,
 		ExpiresAt: expiresAt,
+		IP:        ip,
 		User:      *user,
 	}
 
@@ -88,7 +95,7 @@ func (s *authService) Login(email, password string) (*models.Session, error) {
 }
 
 func (s *authService) GetUserByID(id string) (*models.User, error) {
-	return s.userRepo.FindWithRoles(id)
+	return s.userRepo.FindWithAssociations(id)
 }
 
 func (s *authService) ValidateSession(token string) (*models.User, error) {

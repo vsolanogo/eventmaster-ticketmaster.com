@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"strings"
 	"time"
 
 	"eventmaster-go/internal/models"
@@ -22,6 +23,13 @@ type FileService interface {
 	SaveFileFromURL(url string) (*models.Image, error)
 	GetImageByID(id string) (*models.Image, error)
 	DeleteImage(id string) error
+	ResolveFilePath(link string) string
+}
+
+func (s *fileService) ResolveFilePath(link string) string {
+	trimmed := strings.TrimPrefix(link, s.baseURL)
+	trimmed = strings.TrimLeft(trimmed, "/")
+	return filepath.Join(s.uploadPath, trimmed)
 }
 
 type fileService struct {
@@ -43,7 +51,7 @@ func NewFileService(
 	return &fileService{
 		imageRepo:  imageRepo,
 		uploadPath: uploadPath,
-		baseURL:    baseURL,
+		baseURL:    strings.TrimRight(baseURL, "/"),
 		allowedTypes: map[string]bool{
 			"image/jpeg": true,
 			"image/png":  true,
@@ -83,9 +91,14 @@ func (s *fileService) SaveUploadedFile(file *multipart.FileHeader) (*models.Imag
 		return nil, fmt.Errorf("failed to save file: %v", err)
 	}
 
+	publicLink := fmt.Sprintf("%s/%s", strings.TrimRight(s.baseURL, "/"), filename)
+	if !strings.HasPrefix(publicLink, "/") {
+		publicLink = "/" + publicLink
+	}
+
 	// Create image record in database
 	image := &models.Image{
-		Link: fmt.Sprintf("%s/%s", s.baseURL, filename),
+		Link: publicLink,
 	}
 
 	if err := s.imageRepo.Create(image); err != nil {
@@ -132,9 +145,14 @@ func (s *fileService) SaveFileFromURL(url string) (*models.Image, error) {
 		return nil, fmt.Errorf("failed to save file: %v", err)
 	}
 
+	publicLink := fmt.Sprintf("%s/%s", strings.TrimRight(s.baseURL, "/"), filename)
+	if !strings.HasPrefix(publicLink, "/") {
+		publicLink = "/" + publicLink
+	}
+
 	// Create image record in database
 	image := &models.Image{
-		Link: fmt.Sprintf("%s/%s", s.baseURL, filename),
+		Link: publicLink,
 	}
 
 	if err := s.imageRepo.Create(image); err != nil {

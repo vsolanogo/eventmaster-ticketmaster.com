@@ -94,12 +94,6 @@ export const Header = () => {
           )}
         </div>
       </header>
-
-      {/* <div className="flex flex-col h-screen">
-        <div className="flex-1 bg-red-500"></div>
-        <div className="flex-1 bg-blue-500"></div>
-        <div className="flex-1 bg-green-500"></div>
-      </div> */}
     </>
   );
 };

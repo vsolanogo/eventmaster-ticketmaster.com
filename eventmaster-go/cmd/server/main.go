@@ -13,7 +13,6 @@ import (
 	"eventmaster-go/internal/server"
 	"eventmaster-go/internal/services"
 
-	"golang.org/x/crypto/bcrypt"
 	"gorm.io/gorm"
 )
 
@@ -51,12 +50,13 @@ func main() {
 		&models.Event{},
 		&models.Participant{},
 		&models.Image{},
+		&models.Session{},
 	); err != nil {
 		log.Fatalf("Failed to auto-migrate database: %v", err)
 	}
 
 	// Seed initial data
-	if err := seedInitialData(db); err != nil {
+	if err := seedInitialData(db, cfg.Auth.AdminEmail, cfg.Auth.AdminPassword); err != nil {
 		log.Fatalf("Failed to seed initial data: %v", err)
 	}
 
@@ -73,7 +73,7 @@ func main() {
 		sessionRepo,
 		cfg.Auth.JWTExpiration,
 	)
-	eventService := services.NewEventService(eventRepo)
+	eventService := services.NewEventService(eventRepo, imageRepo)
 	participantService := services.NewParticipantService(participantRepo, eventRepo)
 	imageService := services.NewImageService(imageRepo)
 	systemUserID, err := services.EnsureTicketmasterSystemUser(userRepo)
@@ -134,10 +134,8 @@ func main() {
 	}
 }
 
-// loadConfig is now handled by the config package
-
 // seedInitialData populates the database with initial required data
-func seedInitialData(db *gorm.DB) error {
+func seedInitialData(db *gorm.DB, adminEmail, adminPassword string) error {
 	// Check if admin role exists
 	var adminRole models.Role
 	if err := db.Where("name = ?", "admin").First(&adminRole).Error; err != nil {
@@ -167,18 +165,12 @@ func seedInitialData(db *gorm.DB) error {
 
 	// Check if admin user exists
 	var adminUser models.User
-	if err := db.Where("email = ?", "admin@admin.com").First(&adminUser).Error; err != nil {
+	if err := db.Where("email = ?", adminEmail).First(&adminUser).Error; err != nil {
 		if err == gorm.ErrRecordNotFound {
 			// Create admin user
-			hashedPassword, err := bcrypt.GenerateFromPassword([]byte("admin"), bcrypt.DefaultCost)
-			if err != nil {
-				log.Printf("Failed to hash password: %v", err)
-				return err
-			}
-
 			adminUser = models.User{
-				Email:    "admin@admin.com",
-				Password: string(hashedPassword),
+				Email:    adminEmail,
+				Password: adminPassword,
 			}
 			if err := db.Create(&adminUser).Error; err != nil {
 				log.Printf("Failed to create admin user: %v", err)
@@ -186,7 +178,7 @@ func seedInitialData(db *gorm.DB) error {
 			}
 
 			// Assign admin role to admin user
-			if err := db.Model(&adminUser).Association("Roles").Append(&models.Role{Base: models.Base{ID: adminRole.ID}}); err != nil {
+			if err := db.Model(&adminUser).Association("Roles").Append(&adminRole); err != nil {
 				log.Printf("Failed to assign admin role: %v", err)
 				return err
 			}

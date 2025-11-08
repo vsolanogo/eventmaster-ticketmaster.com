@@ -17,14 +17,6 @@ export const Router = () => {
         <Route path="/create-event" component={CreateEvent} />
         <Route path="/events/:id" component={EventDetails} />
         <Route path="/events/register/:id" component={RegisterParticipant} />
-
-        {/* <Route path="/companies" component={Home} /> */}
-        {/* <Route path="/profile" component={ProfileLayer} />
-        <Route path="/profile/:id" component={UserLayout} />
-        <Route path="/newcompany" component={NewCompanyLayout} />
-        <Route path="/company/:id" component={CompanyLayout} />
-        <Route path="/allcompanies" component={AllCompaniesLayout} />
-        <Route path="/allusers" component={AllUsersLayout} /> */}
         <Route path="*" component={() => <Redirect to="/" />} />
       </Switch>
     </>

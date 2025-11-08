@@ -11,10 +11,10 @@ export const axiosParams = {
   // baseURL: "https://app.mulhollandbot.site/",
   // baseURL: "/api",
   baseURL: "http://localhost:3000/api",
-  
 };
 
 const axiosInstance = axios.create(axiosParams);
+axiosInstance.defaults.withCredentials = true;
 
 const didAbort = (error: AxiosError) => axios.isCancel(error);
 
@@ -28,7 +28,6 @@ const withAbort = <T>(fn: WithAbortFn) => {
   const executor: ApiExecutor<T> = async (...args: ApiExecutorArgs) => {
     const originalConfig = args[args.length - 1] as ApiRequestConfig;
     const { abort, ...config } = originalConfig;
-
 
     if (typeof abort === "function") {
       const { cancel, token } = getCancelSource();
@@ -45,15 +44,14 @@ const withAbort = <T>(fn: WithAbortFn) => {
         return await fn<T>(url, config);
       }
     } catch (error) {
+      // ensure it's an Axios error first
       if (!isApiError(error)) throw error;
 
-      if (didAbort(error)) {
-        error.aborted = true;
-      } else {
-        error.aborted = false;
-      }
+      // Cast to ApiError so TypeScript knows aborted exists
+      const apiError = error as ApiError;
+      apiError.aborted = didAbort(error);
 
-      throw error;
+      throw apiError;
     }
   };
 

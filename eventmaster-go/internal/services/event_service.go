@@ -4,11 +4,12 @@ import (
 	"eventmaster-go/internal/models"
 	"eventmaster-go/internal/repositories"
 	"time"
+	"errors"
 )
 
 // EventService handles event-related business logic
 type EventService interface {
-	CreateEvent(event *models.Event, userID string) (*models.Event, error)
+	CreateEvent(event *models.Event, userID string, imageIDs []string) (*models.Event, error)
 	GetEventByID(id string) (*models.Event, error)
 	GetEventsByDateRange(start, end time.Time) ([]*models.Event, error)
 	GetUserEvents(userID string) ([]*models.Event, error)
@@ -19,20 +20,42 @@ type EventService interface {
 
 type eventService struct {
 	eventRepo repositories.EventRepository
+	imageRepo repositories.ImageRepository
 }
 
 // NewEventService creates a new event service
-func NewEventService(eventRepo repositories.EventRepository) EventService {
+func NewEventService(eventRepo repositories.EventRepository, imageRepo repositories.ImageRepository) EventService {
 	return &eventService{
 		eventRepo: eventRepo,
+		imageRepo: imageRepo,
 	}
 }
 
-func (s *eventService) CreateEvent(event *models.Event, userID string) (*models.Event, error) {
+var ErrImageNotFound = errors.New("one or more images were not found")
+
+func (s *eventService) CreateEvent(event *models.Event, userID string, imageIDs []string) (*models.Event, error) {
 	event.UserID = userID
 	
+	var images []*models.Image
+	var err error
+	if len(imageIDs) > 0 {
+		images, err = s.imageRepo.FindByIDs(imageIDs)
+		if err != nil {
+			return nil, err
+		}
+		if len(images) != len(imageIDs) {
+			return nil, ErrImageNotFound
+		}
+	}
+
 	if err := s.eventRepo.Create(event); err != nil {
 		return nil, err
+	}
+
+	if len(images) > 0 {
+		if err := s.imageRepo.AttachToEvent(event, images); err != nil {
+			return nil, err
+		}
 	}
 
 	// Return the created event with related data

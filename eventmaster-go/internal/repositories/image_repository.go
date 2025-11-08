@@ -10,6 +10,7 @@ type ImageRepository interface {
 	BaseRepository[models.Image]
 	FindByLink(link string) (*models.Image, error)
 	AttachToEvent(event *models.Event, images []*models.Image) error
+	FindByIDs(ids []string) ([]*models.Image, error)
 }
 
 type imageRepository struct {
@@ -43,4 +44,17 @@ func (r *imageRepository) AttachToEvent(event *models.Event, images []*models.Im
 		return nil
 	}
 	return r.db.Model(event).Association("Images").Append(images)
+}
+
+func (r *imageRepository) FindByIDs(ids []string) ([]*models.Image, error) {
+	if len(ids) == 0 {
+		return []*models.Image{}, nil
+	}
+
+	var images []*models.Image
+	if err := r.db.Where("id IN ?", ids).Find(&images).Error; err != nil {
+		return nil, err
+	}
+
+	return images, nil
 }
